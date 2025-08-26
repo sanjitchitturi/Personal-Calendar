@@ -1,4 +1,4 @@
-# Life Calendar
+# Personal Calendar
 
 A simple, single-file life calendar. Tracks days automatically and lets you manually mark milestones.
 
