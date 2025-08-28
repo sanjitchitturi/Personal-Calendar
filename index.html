@@ -1,135 +1,359 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sanjit Chitturi Life Calendar</title>
-<style>
-  body { font-family: 'Segoe UI', sans-serif; background:#f9f9f9; color:#333; display:flex; flex-direction:column; align-items:center; padding:20px;}
-  h1 { margin-bottom: 5px; }
-  #calendar { display: grid; grid-template-columns: repeat(7, 40px); gap: 4px; margin: 20px 0; }
-  .day { width: 40px; height: 40px; display:flex; justify-content:center; align-items:center; cursor:pointer; border-radius:4px; transition:0.2s; }
-  .day.past { background:#eee; color:#999; }
-  .day.marked { background:#4caf50; color:#fff; }
-  .day:hover { transform: scale(1.1); }
-  #controls { margin-bottom: 15px; }
-  button { margin:2px; padding:5px 10px; border:none; border-radius:4px; cursor:pointer; background:#2196F3; color:white; transition:0.2s; }
-  button:hover { background:#1976D2; }
-  #stats { margin-top:10px; }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Personal Calendar</title>
+  <style>
+    :root{
+      --bg: #0f1724;
+      --card: #0b1220;
+      --muted: #94a3b8;
+      --accent: #7c5cff;
+      --accent-2: #4cc9f0;
+      --ok: #34d399;
+      --glass: rgba(255,255,255,0.04);
+      --glass-2: rgba(255,255,255,0.02);
+      --radius: 12px;
+      --shadow: 0 8px 30px rgba(2,6,23,0.6);
+      color-scheme: dark;
+    }
+    /* Reset-ish */
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg,var(--bg), #071021 140%);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:28px;
+      color:#e6eef8;
+    }
+
+    /* App shell */
+    .app{
+      width:100%;
+      max-width:980px;
+      border-radius:18px;
+      padding:20px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+      box-shadow:var(--shadow);
+      display:grid;
+      grid-template-columns: 340px 1fr;
+      gap:18px;
+      align-items:start;
+    }
+
+    /* Left panel */
+    .panel{
+      background:linear-gradient(180deg,var(--glass), var(--glass-2));
+      border-radius:var(--radius);
+      padding:16px;
+      border: 1px solid rgba(255,255,255,0.03);
+      backdrop-filter: blur(6px) saturate(120%);
+    }
+
+    header h1{margin:0;font-size:1.25rem;letter-spacing:0.2px}
+    header p{margin:6px 0 0;color:var(--muted);font-size:13px}
+
+    .controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+    .btn{background:linear-gradient(180deg,var(--accent), #5a3bff);border:0;color:white;padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600;box-shadow:0 6px 18px rgba(124,92,255,0.18)}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);box-shadow:none;color:var(--muted);font-weight:500}
+    .btn.secondary{background:linear-gradient(180deg,var(--accent-2), #01b8e6)}
+
+    .small{font-size:13px;padding:6px 10px;border-radius:8px}
+
+    .meta{margin-top:16px}
+    .meta .stat{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,0.02);color:var(--muted)}
+    .meta .stat strong{color:#fff}
+
+    /* Legend */
+    .legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    .chip{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border-radius:999px;background:rgba(255,255,255,0.02);font-size:13px;color:var(--muted)}
+    .dot{width:12px;height:12px;border-radius:50%}
+
+    /* Right: calendar */
+    .board{padding:18px 18px 12px;border-radius:var(--radius);background:linear-gradient(180deg, rgba(255,255,255,0.015), transparent);border:1px solid rgba(255,255,255,0.02)}
+    .month-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+    .month-title{font-weight:700;font-size:1.15rem}
+    .month-actions{display:flex;align-items:center;gap:8px}
+
+    .weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:8px}
+    .weekday{font-size:12px;color:var(--muted);text-align:center}
+
+    .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+    .cell{aspect-ratio:1/1;border-radius:10px;background:transparent;display:flex;align-items:flex-start;justify-content:flex-start;padding:8px 8px 6px;cursor:pointer;position:relative;transition:transform .12s,box-shadow .12s}
+    .cell:hover{transform:translateY(-6px)}
+    .date{position:absolute;top:8px;left:8px;font-size:12px;color:var(--muted)}
+
+    .cell.card{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);box-shadow:0 6px 16px rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.02)}
+
+    .cell.past{opacity:0.55}
+    .mark{position:absolute;right:8px;bottom:8px;padding:6px 8px;border-radius:8px;font-size:12px;font-weight:700}
+    .mark.manual{background:var(--accent);color:white}
+    .mark.auto{background:var(--ok);color:#012018}
+
+    /* Progress */
+    .progress-wrap{margin-top:12px}
+    .bar{height:10px;background:rgba(255,255,255,0.04);border-radius:999px;overflow:hidden}
+    .bar-inner{height:100%;background:linear-gradient(90deg,var(--accent), var(--accent-2));width:0%;transition:width .4s ease}
+
+    /* Modal / small form */
+    .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:60}
+    .dialog{background:var(--card);padding:18px;border-radius:12px;min-width:320px;max-width:520px}
+    .dialog h3{margin:0 0 8px}
+    .field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+    input[type='text'], textarea{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:#e6eef8}
+
+    /* Footer small */
+    .foot{font-size:12px;color:var(--muted);margin-top:12px;text-align:center}
+
+    /* Responsive */
+    @media (max-width:900px){
+      .app{grid-template-columns:1fr;padding:14px}
+    }
+  </style>
 </head>
 <body>
+  <main class="app" role="application" aria-label="Personal Calendar app">
+    <section class="panel" aria-labelledby="appTitle">
+      <header>
+        <h1 id="appTitle">Personal Calendar</h1>
+        <p>Minimal, private life calendar — auto-completes past days and lets you mark milestones.</p>
+      </header>
 
-<h1>Sanjit Chitturi Life Calendar</h1>
-<div id="controls">
-  <button id="prevMonth">Prev</button>
-  <button id="nextMonth">Next</button>
-  <button id="jumpStart">Jump to Start</button>
-  <button id="jumpToday">Today</button>
-  <button id="exportMarks">Export</button>
-  <button id="importMarks">Import</button>
-  <button id="resetMarks">Reset</button>
-</div>
+      <div class="controls" role="toolbar" aria-label="Calendar controls">
+        <button id="jumpToday" class="btn small">📍 Today</button>
+        <button id="jumpStart" class="btn ghost small">⏮ Start</button>
+        <button id="exportMarks" class="btn ghost small">💾 Export</button>
+        <button id="importMarks" class="btn ghost small">📂 Import</button>
+        <button id="resetMarks" class="btn ghost small">🔄 Reset</button>
+      </div>
 
-<div id="calendar"></div>
-<div id="stats"></div>
+      <div class="meta" aria-live="polite">
+        <div class="stat"><span>Total days lived</span><strong id="statTotal">—</strong></div>
+        <div class="stat"><span>Manual milestones</span><strong id="statManual">—</strong></div>
+        <div class="stat"><span>Completion</span><strong id="statPercent">—</strong></div>
+
+        <div class="progress-wrap">
+          <div class="bar" aria-hidden="true"><div id="progress" class="bar-inner"></div></div>
+        </div>
+
+        <div class="legend" aria-hidden="false">
+          <div class="chip"><span class="dot" style="background:var(--ok)"></span> Auto (past days)</div>
+          <div class="chip"><span class="dot" style="background:var(--accent)"></span> Manual milestone</div>
+        </div>
+      </div>
+
+      <div class="foot">Data is stored locally in your browser (localStorage). No servers, no tracking.</div>
+    </section>
+
+    <section class="board" aria-labelledby="calendarTitle">
+      <div class="month-bar">
+        <div class="month-title" id="calendarTitle">&nbsp;</div>
+        <div class="month-actions">
+          <button id="prevMonth" class="btn ghost small">◀</button>
+          <button id="nextMonth" class="btn ghost small">▶</button>
+          <button id="toggleLegend" class="btn ghost small">Legend</button>
+        </div>
+      </div>
+
+      <div class="weekdays" role="presentation">
+        <div class="weekday">Sun</div>
+        <div class="weekday">Mon</div>
+        <div class="weekday">Tue</div>
+        <div class="weekday">Wed</div>
+        <div class="weekday">Thu</div>
+        <div class="weekday">Fri</div>
+        <div class="weekday">Sat</div>
+      </div>
+
+      <div id="grid" class="grid" role="grid" aria-label="Month grid"></div>
+    </section>
+  </main>
+
+  <!-- Modal for editing note -->
+  <div id="modal" class="modal" style="display:none" aria-hidden="true">
+    <div class="dialog" role="dialog" aria-modal="true">
+      <h3 id="modalTitle">Mark milestone</h3>
+      <div class="field">
+        <label for="note">Optional note</label>
+        <input id="note" type="text" placeholder="Add a short note (e.g. " + 'Graduation)" />
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button id="modalCancel" class="btn ghost">Cancel</button>
+        <button id="modalSave" class="btn">Save</button>
+      </div>
+    </div>
+  </div>
 
 <script>
-const START = new Date(2005,3,9); // April 9, 2005 (months 0-based)
-const WEEK_START = 0; // 0=Sunday, 1=Monday
-let currentDate = new Date();
-let currentMonth = currentDate.getMonth();
-let currentYear = currentDate.getFullYear();
-let manualMarks = JSON.parse(localStorage.getItem('milestone:marks:final') || '{}');
+// Configuration
+const START = new Date(2005,3,9); // keep user's start date
+const STORAGE_KEY = 'personal-calendar:marks:v1';
 
-function atMid(date) { return new Date(date.getFullYear(), date.getMonth(), date.getDate()); }
+// State
+let view = new Date();
+let marks = loadMarks();
+let modalState = { visible:false, dateKey:null };
 
-function saveMarks() { localStorage.setItem('milestone:marks:final', JSON.stringify(manualMarks)); }
+// Helpers
+function toKey(date){ return date.toISOString().split('T')[0]; }
+function atMid(d){ return new Date(d.getFullYear(),d.getMonth(),d.getDate()); }
+function loadMarks(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }catch(e){return {}} }
+function saveMarks(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(marks)); }
 
-function renderCalendar(year, month) {
-    const calendar = document.getElementById('calendar');
-    calendar.innerHTML = '';
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month+1, 0).getDate();
-    
-    // padding empty cells
-    for(let i=0; i<(firstDay-WEEK_START+7)%7; i++) {
-        const empty = document.createElement('div');
-        calendar.appendChild(empty);
+// UI refs
+const grid = document.getElementById('grid');
+const monthTitle = document.getElementById('calendarTitle');
+const statTotal = document.getElementById('statTotal');
+const statManual = document.getElementById('statManual');
+const statPercent = document.getElementById('statPercent');
+const progressEl = document.getElementById('progress');
+const modal = document.getElementById('modal');
+const noteInput = document.getElementById('note');
+
+// Render calendar for year/month in view
+function render(){
+  const year = view.getFullYear();
+  const month = view.getMonth();
+  monthTitle.textContent = `${view.toLocaleString(undefined,{month:'long'})} ${year}`;
+  grid.innerHTML='';
+
+  const firstWeekday = new Date(year,month,1).getDay();
+  const days = new Date(year,month+1,0).getDate();
+
+  // leading blanks
+  for(let i=0;i<firstWeekday;i++){ const el=document.createElement('div'); el.className='cell'; el.setAttribute('aria-hidden','true'); grid.appendChild(el);} 
+
+  const today = atMid(new Date());
+  for(let d=1;d<=days;d++){
+    const date = new Date(year,month,d);
+    const key = toKey(date);
+    const cell = document.createElement('button');
+    cell.className='cell card';
+    cell.setAttribute('role','gridcell');
+    cell.tabIndex=0;
+
+    const isPast = date < today;
+    if(isPast) cell.classList.add('past');
+
+    const dateLabel = document.createElement('div'); dateLabel.className='date'; dateLabel.textContent=d; cell.appendChild(dateLabel);
+
+    if(marks[key]){
+      const tag = document.createElement('div'); tag.className='mark manual'; tag.textContent='★';
+      tag.title = marks[key].note || 'Manual milestone';
+      cell.appendChild(tag);
+    } else if(isPast){
+      const tag = document.createElement('div'); tag.className='mark auto'; tag.textContent='✓'; tag.title='Auto-completed (past day)';
+      cell.appendChild(tag);
     }
-    
-    for(let d=1; d<=daysInMonth; d++) {
-        const dayEl = document.createElement('div');
-        dayEl.textContent = d;
-        dayEl.className = 'day';
-        const thisDate = new Date(year, month, d);
-        if(thisDate < atMid(new Date())) dayEl.classList.add('past');
-        if(manualMarks[thisDate.toDateString()]) dayEl.classList.add('marked');
-        
-        dayEl.onclick = () => {
-            const key = thisDate.toDateString();
-            if(manualMarks[key]) delete manualMarks[key];
-            else manualMarks[key] = true;
-            saveMarks();
-            renderCalendar(currentYear, currentMonth);
-            updateStats();
-        }
-        calendar.appendChild(dayEl);
+
+    // click opens modal to add/remove note
+    cell.onclick = (e)=>{
+      e.preventDefault();
+      openModal(key, date);
     }
+
+    grid.appendChild(cell);
+  }
+
+  updateStats();
 }
 
-function updateStats() {
-    const now = atMid(new Date());
-    const start = atMid(START);
-    const totalDays = Math.floor((now - start)/(1000*60*60*24))+1;
-    const passedDays = totalDays; // all past days auto-completed
-    const manualCount = Object.keys(manualMarks).length;
-    const completion = ((passedDays + manualCount)/totalDays*100).toFixed(1);
-    
-    document.getElementById('stats').innerHTML = `
-        Total Days: ${totalDays} <br>
-        Manual Marks: ${manualCount} <br>
-        Completion %: ${completion}%
-    `;
+function updateStats(){
+  const now = atMid(new Date());
+  const start = atMid(START);
+  const totalDays = Math.floor((now - start)/(1000*60*60*24)) + 1;
+  const manualCount = Object.keys(marks).length;
+  // Completed days = all past days since start (including today) + manual marks in future
+  const livedDays = Math.floor((now - start)/(1000*60*60*24)) + 1;
+  // To avoid double-counting, count manual marks only for dates after today
+  let futureManual=0; for(const k of Object.keys(marks)) if(new Date(k) > now) futureManual++;
+  const completed = livedDays + futureManual;
+  const pct = Math.min(100, (completed/totalDays*100)).toFixed(1);
+
+  statTotal.textContent = totalDays.toLocaleString();
+  statManual.textContent = manualCount.toLocaleString();
+  statPercent.textContent = pct + '%';
+  progressEl.style.width = pct + '%';
+}
+
+// Modal interactions
+function openModal(key, date){
+  modalState = {visible:true, dateKey:key};
+  modal.style.display='flex';
+  modal.setAttribute('aria-hidden','false');
+  noteInput.value = marks[key] ? (marks[key].note || '') : '';
+  noteInput.focus();
+  document.getElementById('modalTitle').textContent = `Mark: ${date.toLocaleDateString()}`;
+}
+function closeModal(){ modalState = {visible:false, dateKey:null}; modal.style.display='none'; modal.setAttribute('aria-hidden','true'); noteInput.value=''; }
+
+// Save or toggle mark
+function saveModal(){
+  const key = modalState.dateKey; if(!key) return;
+  const note = noteInput.value.trim();
+  const today = atMid(new Date());
+  const dateObj = new Date(key+'T00:00:00');
+  // toggle: if already marked remove it, unless user added a note -> update
+  if(marks[key]){
+    if(note.length===0){ delete marks[key]; }
+    else { marks[key].note = note; }
+  } else {
+    marks[key] = { note: note };
+  }
+  saveMarks(); closeModal(); render();
 }
 
 // Controls
-document.getElementById('prevMonth').onclick = () => { currentMonth--; if(currentMonth<0){currentMonth=11; currentYear--;} renderCalendar(currentYear, currentMonth); }
-document.getElementById('nextMonth').onclick = () => { currentMonth++; if(currentMonth>11){currentMonth=0; currentYear++;} renderCalendar(currentYear, currentMonth); }
-document.getElementById('jumpStart').onclick = () => { currentMonth=START.getMonth(); currentYear=START.getFullYear(); renderCalendar(currentYear, currentMonth); }
-document.getElementById('jumpToday').onclick = () => { currentDate=new Date(); currentMonth=currentDate.getMonth(); currentYear=currentDate.getFullYear(); renderCalendar(currentYear, currentMonth); }
-document.getElementById('resetMarks').onclick = () => { if(confirm("Clear all manual marks?")){manualMarks={}; saveMarks(); renderCalendar(currentYear, currentMonth); updateStats();} }
-document.getElementById('exportMarks').onclick = () => {
-    const blob = new Blob([JSON.stringify(manualMarks,null,2)], {type:'application/json'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'milestone-marks.json';
-    a.click();
-}
-document.getElementById('importMarks').onclick = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = e => {
-        const file = e.target.files[0];
-        if(!file) return;
-        const reader = new FileReader();
-        reader.onload = () => {
-            try {
-                manualMarks = JSON.parse(reader.result);
-                saveMarks();
-                renderCalendar(currentYear, currentMonth);
-                updateStats();
-            } catch { alert('Invalid JSON'); }
-        }
-        reader.readAsText(file);
-    }
-    input.click();
+function gotoToday(){ view = atMid(new Date()); render(); }
+function gotoStart(){ view = new Date(START.getFullYear(), START.getMonth(), 1); render(); }
+function prevMonth(){ view.setMonth(view.getMonth()-1); render(); }
+function nextMonth(){ view.setMonth(view.getMonth()+1); render(); }
+function resetMarks(){ if(confirm('Clear all manual milestones?')){ marks={}; saveMarks(); render(); } }
+
+function exportMarks(){
+  const blob = new Blob([JSON.stringify(marks,null,2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'personal-calendar-marks.json'; a.click();
 }
 
-renderCalendar(currentYear, currentMonth);
-updateStats();
+function importMarks(){
+  const input = document.createElement('input'); input.type='file'; input.accept='.json'; input.onchange = e=>{
+    const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = ()=>{
+      try{ const parsed = JSON.parse(reader.result); if(typeof parsed === 'object'){ marks = parsed; saveMarks(); render(); alert('Imported successfully'); } else throw 0; }
+      catch(err){ alert('Invalid JSON file'); }
+    }; reader.readAsText(file);
+  }; input.click();
+}
+
+// Events binding
+document.getElementById('prevMonth').onclick = prevMonth;
+document.getElementById('nextMonth').onclick = nextMonth;
+document.getElementById('jumpToday').onclick = gotoToday;
+document.getElementById('jumpStart').onclick = ()=>{ view = new Date(START.getFullYear(), START.getMonth(), 1); render(); };
+document.getElementById('exportMarks').onclick = exportMarks;
+document.getElementById('importMarks').onclick = importMarks;
+document.getElementById('resetMarks').onclick = resetMarks;
+
+// Modal buttons
+document.getElementById('modalCancel').onclick = ()=>closeModal();
+document.getElementById('modalSave').onclick = ()=>saveModal();
+
+// Keyboard shortcuts
+window.addEventListener('keydown', (e)=>{
+  if(e.key === 'ArrowLeft') prevMonth();
+  if(e.key === 'ArrowRight') nextMonth();
+  if(e.key === 't') gotoToday();
+  if(e.key === 'h') gotoStart();
+  if(e.key === 'Escape') closeModal();
+});
+
+// Initial render
+render();
+
 </script>
-
 </body>
 </html>
